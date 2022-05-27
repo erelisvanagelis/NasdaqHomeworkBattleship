@@ -1,14 +1,17 @@
 package tama.antanas.battleship.service
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.*
 import tama.antanas.battleship.datasource.MemoryGameDataSource
+import tama.antanas.battleship.model.Coordinates
+import tama.antanas.battleship.utility.Action
 import tama.antanas.battleship.utility.Environment
+import tama.antanas.battleship.utility.Player
 import tama.antanas.battleship.utility.Ship
 
 internal class DefaultBattleshipServiceTest{
     private val service = DefaultBattleshipService(MemoryGameDataSource())
+//    private val service : BattleshipService = mock()
 
     @Test
     fun `generateGrid() - should generate a grid within limits` () {
@@ -123,4 +126,233 @@ internal class DefaultBattleshipServiceTest{
         //then
         assertThat(exception::class).isEqualTo(NoSuchElementException::class)
     }
+    
+    @Nested
+    @DisplayName("performAttack()")
+    @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+    inner class PerformAttack {
+        @Test
+        fun `should throw NoSuchElementException because Id does not exist` () {
+            //given
+            val id = "new3"
+            val player = Player.ONE
+            val coordinates = Coordinates('A', 1)
+
+            //when
+            val exception = assertThrows<NoSuchElementException> { service.performAttack(id, player, coordinates) }
+
+            //then
+            assertThat(exception::class).isEqualTo(NoSuchElementException::class)
+        }
+
+        @Test
+        fun `should throw UnsupportedOperationException because game state is inactive` () {
+            //given
+            val id = "new4"
+            val player = Player.ONE
+            val coordinates = Coordinates('A', 1)
+
+            //when
+            val game = service.createGame(id)
+            game.active = false
+            service.changeGame(game)
+            val exception = assertThrows<UnsupportedOperationException> { service.performAttack(id, player, coordinates)  }
+
+            //then
+            assertThat(exception::class).isEqualTo(UnsupportedOperationException::class)
+        }
+
+        @Test
+        fun `should throw UnsupportedOperationException because not the requested players turn` () {
+            //given
+            val id = "new5"
+            val player = Player.TWO
+            val coordinates = Coordinates('A', 1)
+
+            //when
+            service.createGame(id)
+            val exception = assertThrows<UnsupportedOperationException> { service.performAttack(id, player, coordinates)  }
+
+            //then
+            assertThat(exception::class).isEqualTo(UnsupportedOperationException::class)
+        }
+
+        @Test
+        fun `should create additional GameState and add it to states` () {
+            //given
+            val id = "new7"
+            val player = Player.ONE
+            val coordinates = Coordinates('A', 1)
+
+            //when
+            val game = service.createGame(id)
+            val currentTurnCount = game.states.size
+            service.performAttack(id, player, coordinates)
+            val newTurnCount = service.getGame(id).states.size
+
+            //then
+            assertThat(currentTurnCount + 1).isEqualTo(newTurnCount)
+        }
+
+        @Test
+        fun `should create additional GameState and add its turn should be bigger` () {
+            //given
+            val id = "new8"
+            val player = Player.ONE
+            val coordinates = Coordinates('A', 1)
+
+            //when
+            val currentState = service.createGame(id).states.first()
+            service.performAttack(id, player, coordinates)
+            val newState = service.getGame(id).states.last()
+
+            //then
+            assertThat(currentState.turn).isLessThan(newState.turn)
+        }
+
+    }
+
+    @Nested
+    @DisplayName("attackTile()")
+    @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+    inner class AttackTile {
+        @Test
+        fun `should throw NoSuchElementException because Coordinates are wrong` () {
+            //given
+            val coordinates = Coordinates('z', 999)
+
+            //when
+            val grid = service.generateGrid('A'..'C', 1..3)
+
+            val exception = assertThrows<NoSuchElementException> { service.attackTile(grid, coordinates) }
+
+            //then
+            assertThat(exception::class).isEqualTo(NoSuchElementException::class)
+        }
+
+        @Test
+        fun `should throw UnsupportedOperationException because tile is already shot` () {
+            //given
+            val coordinates = Coordinates('A', 1)
+
+            //when
+            val grid = service.generateGrid('A'..'C', 1..3)
+            grid.first().shot = true
+            val exception = assertThrows<UnsupportedOperationException> { service.attackTile(grid, coordinates)  }
+
+            //then
+            assertThat(exception::class).isEqualTo(UnsupportedOperationException::class)
+        }
+
+        @Test
+        fun `should change tile to shot` () {
+            //given
+            val coordinates = Coordinates('A', 1)
+
+            //when
+            val grid = service.generateGrid('A'..'C', 1..3)
+            service.attackTile(grid, coordinates)
+
+            //then
+            assertThat(grid.first{it.coordinates == coordinates}.shot).isEqualTo(true)
+        }
+
+        @Test
+        fun `should change tile to shot and return MISS` () {
+            //given
+            val coordinates = Coordinates('A', 1)
+            val testTag = Environment.WATER.name
+
+            //when
+            val grid = service.generateGrid('A'..'C', 1..3)
+            grid.first().tag = testTag
+            val result = service.attackTile(grid, coordinates)
+
+            //then
+            assertThat(result).isEqualTo(Action.MISS)
+        }
+
+        @Test
+        fun `should change tile to shot and return HIT` () {
+            //given
+            val coordinates = Coordinates('A', 1)
+            val testTag = Ship.BATTLESHIP.name
+
+            //when
+            val grid = service.generateGrid('A'..'C', 1..3)
+            grid.first().tag = testTag
+            grid.last().tag = testTag
+            val result = service.attackTile(grid, coordinates)
+
+            //then
+            assertThat(result).isEqualTo(Action.HIT)
+        }
+
+        @Test
+        fun `should change tile to shot and return SANK` () {
+            //given
+            val coordinates = Coordinates('A', 1)
+            val testTag = Ship.BATTLESHIP.name
+
+            //when
+            val grid = service.generateGrid('A'..'C', 1..3)
+            grid.first().tag = testTag
+            val result = service.attackTile(grid, coordinates)
+
+            //then
+            assertThat(result).isEqualTo(Action.SANK)
+        }
+    }
+
+
+    @Nested
+    @DisplayName("areAllShipsSunk()")
+    @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+    inner class AreAllShipsSunk {
+        @Test
+        fun `should return true because no ship tiles` () {
+            //when
+            val grid = service.generateGrid('A'..'C', 1..3)
+            val result = service.areAllShipsSunk(grid, Ship.values().toList())
+
+            //then
+            assertThat(result).isEqualTo(true)
+        }
+
+        @Test
+        fun `should return false because not all ship tiles shot` () {
+            val testTag = Ship.BATTLESHIP.name
+            //when
+            val grid = service.generateGrid('A'..'C', 1..3)
+            grid.first().tag = testTag
+            grid.last().tag = testTag
+            grid.first().shot = true
+            val result = service.areAllShipsSunk(grid, Ship.values().toList())
+
+            //then
+            assertThat(result).isEqualTo(false)
+        }
+
+        @Test
+        fun `should return true because all ships shot` () {
+            //given
+            val testTag = Ship.BATTLESHIP.name
+
+            //when
+            val grid = service.generateGrid('A'..'C', 1..3)
+            grid.first().tag = testTag
+            grid.last().tag = testTag
+            grid.first().shot = true
+            grid.last().shot = true
+            val result = service.areAllShipsSunk(grid, Ship.values().toList())
+
+            //then
+            assertThat(result).isEqualTo(true)
+        }
+    }
+
+
+
+
+    
 }

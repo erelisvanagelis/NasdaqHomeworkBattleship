@@ -6,7 +6,9 @@ import tama.antanas.battleship.model.Coordinates
 import tama.antanas.battleship.model.Game
 import tama.antanas.battleship.model.GameState
 import tama.antanas.battleship.model.Tile
+import tama.antanas.battleship.utility.Action
 import tama.antanas.battleship.utility.Environment
+import tama.antanas.battleship.utility.Player
 import tama.antanas.battleship.utility.Ship
 import kotlin.random.Random
 
@@ -16,7 +18,7 @@ class DefaultBattleshipService(private val gameDataSource: GameDataSource) : Bat
         val tiles = mutableListOf<Tile>()
         for (letter in letters) {
             for (number in numbers) {
-                tiles.add(Tile("${Environment.WATER.name}", Coordinates(letter, number), false))
+                tiles.add(Tile(Environment.WATER.name, Coordinates(letter, number), false))
             }
         }
         return tiles
@@ -37,7 +39,7 @@ class DefaultBattleshipService(private val gameDataSource: GameDataSource) : Bat
         return copiedGrid
     }
 
-    fun findDistinctCoordinates(grid: List<Tile>): List<String> {
+    override fun findDistinctCoordinates(grid: List<Tile>): List<String> {
         val possibleCoordinates: MutableList<String> = mutableListOf()
         possibleCoordinates.addAll(
             grid.distinctBy { it.coordinates.letter }
@@ -103,9 +105,101 @@ class DefaultBattleshipService(private val gameDataSource: GameDataSource) : Bat
     override fun getGame(id: String): Game =
         gameDataSource.retrieveGame(id) ?: throw NoSuchElementException("This game (Id: $id) does not exist")
 
+    override fun changeGame(game: Game): Game {
+        gameDataSource.retrieveGame(game.id)
+            ?: throw NoSuchElementException("This game (Id: ${game.id}) does not exist")
+        gameDataSource.updateGame(game)
+        return game
+    }
 
-    override fun attackTile(gameId: String, player: String, coordinates: Coordinates): String {
-        TODO("Not yet implemented")
+    override fun performAttack(gameId: String, player: Player, coordinates: Coordinates): String {
+        val game = getGame(gameId)
+        val currentState = game.states.last()
+
+        when {
+            !game.active -> throw UnsupportedOperationException("Game ($gameId) is already over")
+
+            Player.values().firstOrNull { it == player } == null ->
+                throw UnsupportedOperationException("Player ($player) does not exist. Supported names: ${Player.values()}")
+
+            currentState.playerTurn != player -> throw UnsupportedOperationException("Game ($gameId) is already over")
+        }
+
+        lateinit var nextPlayerTurn: Player
+        lateinit var selectedGrid: List<Tile>
+        lateinit var fpGrid: List<Tile>
+        lateinit var spGrid: List<Tile>
+
+        if (player == Player.ONE) {
+            selectedGrid = currentState.spGrid.map { it }
+            fpGrid = currentState.fpGrid
+            spGrid = selectedGrid
+            nextPlayerTurn = Player.TWO
+
+        } else if (player == Player.TWO) {
+            selectedGrid = currentState.fpGrid.map { it }
+            fpGrid = currentState.spGrid
+            spGrid = selectedGrid
+            nextPlayerTurn = Player.ONE
+        }
+
+        val actionResult = attackTile(selectedGrid, coordinates)
+        var actionMessage = "${player.name} ${actionResult.description}"
+        val allShipsSunk = areAllShipsSunk(selectedGrid, Ship.values().toList())
+        if (allShipsSunk) actionMessage += ", GAME OVER PLAYER ${player.name} WON"
+
+        val newState = GameState(
+            turn = currentState.turn + 1,
+            playerTurn = nextPlayerTurn,
+            action = actionMessage,
+            fpGrid = fpGrid,
+            spGrid = spGrid
+        )
+
+        game.states.add(newState)
+        gameDataSource.updateGame(
+            Game(
+                id = gameId,
+                active = !allShipsSunk,
+                states = game.states
+            )
+        )
+
+        return actionResult.lowName
+    }
+
+    override fun attackTile(grid: List<Tile>, coordinates: Coordinates): Action {
+        val target = grid.firstOrNull { it.coordinates == coordinates }
+
+        when {
+            target == null -> throw NoSuchElementException(
+                "Invalid tile coordinates $coordinates, supported coordinates (${findDistinctCoordinates(grid)})"
+            )
+
+            target.shot -> throw UnsupportedOperationException(
+                "Tile ($coordinates) was already shot"
+            )
+        }
+
+        target?.shot = true
+        lateinit var result: Action
+        when (target?.tag) {
+            in Environment.values().map { it.name } -> result = Action.MISS
+
+            in Ship.values().map { it.name } -> result =
+                if (grid.any { it.tag == target?.tag && !it.shot }) Action.HIT else Action.SANK
+        }
+
+        return result
+    }
+
+    override fun areAllShipsSunk(grid: List<Tile>, ships: List<Ship>): Boolean {
+        for (ship in ships) {
+            if (grid.any { it.tag == ship.name && !it.shot }) {
+                return false
+            }
+        }
+        return true
     }
 
     override fun getCurrentGameState(gameId: String): GameState {

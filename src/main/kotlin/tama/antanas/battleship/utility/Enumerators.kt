@@ -17,3 +17,9 @@ enum class Ship(val length: Int) {
 enum class Environment{
     WATER
 }
+
+enum class Action(val lowName: String, val description: String){
+    MISS("miss", "missed ships"),
+    HIT("hit", "hit ship"),
+    SANK("sank", "sank ship")
+}
