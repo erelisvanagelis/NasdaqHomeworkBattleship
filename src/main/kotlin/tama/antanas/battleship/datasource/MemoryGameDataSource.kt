@@ -1,7 +1,6 @@
-package tama.antanas.battleship.datasource.memory
+package tama.antanas.battleship.datasource
 
 import org.springframework.stereotype.Repository
-import tama.antanas.battleship.datasource.GameDataSource
 import tama.antanas.battleship.model.Game
 import tama.antanas.battleship.model.GameState
 
@@ -25,7 +24,7 @@ class MemoryGameDataSource : GameDataSource {
         return game
     }
 
-    override fun retrieveGame(id: String): Game = games.first() { x -> x.id == id }
+    override fun retrieveGame(id: String): Game? = games.firstOrNull() { x -> x.id == id }
 
     override fun retrieveAllGames(): Collection<Game> = games
 }

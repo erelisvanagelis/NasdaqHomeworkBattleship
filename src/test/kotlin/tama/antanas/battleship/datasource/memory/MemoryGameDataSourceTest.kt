@@ -1,8 +1,8 @@
 package tama.antanas.battleship.datasource.memory
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import tama.antanas.battleship.datasource.MemoryGameDataSource
 import tama.antanas.battleship.model.Coordinates
 import tama.antanas.battleship.model.Game
 import tama.antanas.battleship.model.GameState
@@ -55,8 +55,8 @@ fun `retrieveGame(id) - should retrieve a game by id` () {
         val game = Game(
             id, mutableListOf(
                 GameState(
-                    fpGrid = listOf(Tile(Environment.WATER.name, Coordinates("A", 2), false)),
-                    spGrid = listOf(Tile(Environment.WATER.name, Coordinates("A", 2), false))
+                    fpGrid = listOf(Tile(Environment.WATER.name, Coordinates('A', 2,), false)),
+                    spGrid = listOf(Tile(Environment.WATER.name, Coordinates('A', 2), false))
                 )
             )
         )
