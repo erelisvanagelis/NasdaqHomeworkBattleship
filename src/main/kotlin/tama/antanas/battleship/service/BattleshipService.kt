@@ -21,5 +21,5 @@ interface BattleshipService {
     fun areAllShipsSunk(grid: List<Tile>, ships: List<Ship>): Boolean
     fun getCurrentGameState(gameId: String): GameState
     fun getGameState(gameId: String, turn: Int): GameState
-    fun resetGame(gameId: String): GameState
+    fun resetGame(gameId: String): Game
 }

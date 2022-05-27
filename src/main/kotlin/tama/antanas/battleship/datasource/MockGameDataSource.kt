@@ -5,7 +5,7 @@ import tama.antanas.battleship.model.Game
 import tama.antanas.battleship.model.GameState
 
 @Repository
-class MemoryGameDataSource : GameDataSource {
+class MockGameDataSource : GameDataSource {
     private val games = mutableListOf<Game>(
         Game("test1", mutableListOf<GameState>()),
         Game("test2", mutableListOf<GameState>()),

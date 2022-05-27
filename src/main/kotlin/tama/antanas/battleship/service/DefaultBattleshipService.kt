@@ -1,9 +1,6 @@
 package tama.antanas.battleship.service
 
-import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Service
-import org.springframework.web.bind.annotation.ExceptionHandler
 import tama.antanas.battleship.datasource.GameDataSource
 import tama.antanas.battleship.model.Coordinates
 import tama.antanas.battleship.model.Game
@@ -208,10 +205,18 @@ class DefaultBattleshipService(private val gameDataSource: GameDataSource) : Bat
     override fun getCurrentGameState(gameId: String): GameState = getGame(gameId).states.last()
 
     override fun getGameState(gameId: String, turn: Int): GameState {
-        TODO("Not yet implemented")
+        val game = getGame(gameId)
+        return game.states.firstOrNull { it.turn == turn }
+            ?: throw NoSuchElementException("No state with with requested turn ($turn)")
     }
 
-    override fun resetGame(gameId: String): GameState {
-        TODO("Not yet implemented")
+    override fun resetGame(gameId: String): Game {
+        val game = getGame(gameId)
+        val firsState = game.states.first()
+        game.states.clear()
+        game.states.add(firsState)
+        game.active = true
+        changeGame(game)
+        return game
     }
 }

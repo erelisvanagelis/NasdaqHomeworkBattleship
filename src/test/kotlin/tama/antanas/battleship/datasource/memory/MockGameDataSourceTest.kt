@@ -2,15 +2,15 @@ package tama.antanas.battleship.datasource.memory
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import tama.antanas.battleship.datasource.MemoryGameDataSource
+import tama.antanas.battleship.datasource.MockGameDataSource
 import tama.antanas.battleship.model.Coordinates
 import tama.antanas.battleship.model.Game
 import tama.antanas.battleship.model.GameState
 import tama.antanas.battleship.model.Tile
 import tama.antanas.battleship.utility.Environment
 
-internal class MemoryGameDataSourceTest {
-    private val dataSource: MemoryGameDataSource = MemoryGameDataSource()
+internal class MockGameDataSourceTest {
+    private val dataSource: MockGameDataSource = MockGameDataSource()
 
     @Test
     fun `retrieveAllGames() should retrieve all games` () {

@@ -2,7 +2,7 @@ package tama.antanas.battleship.service
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.*
-import tama.antanas.battleship.datasource.MemoryGameDataSource
+import tama.antanas.battleship.datasource.MockGameDataSource
 import tama.antanas.battleship.model.Coordinates
 import tama.antanas.battleship.utility.Action
 import tama.antanas.battleship.utility.Environment
@@ -10,8 +10,7 @@ import tama.antanas.battleship.utility.Player
 import tama.antanas.battleship.utility.Ship
 
 internal class DefaultBattleshipServiceTest{
-    private val service = DefaultBattleshipService(MemoryGameDataSource())
-//    private val service : BattleshipService = mock()
+    private val service = DefaultBattleshipService(MockGameDataSource())
 
     @Test
     fun `generateGrid() - should generate a grid within limits` () {
@@ -351,8 +350,76 @@ internal class DefaultBattleshipServiceTest{
         }
     }
 
+//    fun getCurrentGameState(gameId: String): GameState
+//    fun getGameState(gameId: String, turn: Int): GameState
+//    fun resetGame(gameId: String): GameState
 
+    @Test
+    fun `getCurrentGameState() - should return latestGameState` () {
+        //given
+        val gameId = "new9"
+        val player = Player.ONE
+        val coordinates = Coordinates('A', 1)
 
+        //when
+        val game = service.createGame(gameId)
+        val previousLatest = game.states.last()
+        service.performAttack(gameId, player, coordinates)
+        val currentLatest = game.states.last()
 
-    
+        //then
+        assertThat(service.getCurrentGameState(gameId)).isNotEqualTo(previousLatest)
+        assertThat(service.getCurrentGameState(gameId)).isEqualTo(currentLatest)
+    }
+
+    @Test
+    fun `getGameState() - should get specified state of specified game` () {
+        //given
+        val gameId = "new10"
+        val player = Player.ONE
+        val coordinates = Coordinates('A', 1)
+        val turn = 1;
+
+        //when
+        val game = service.createGame(gameId)
+        service.performAttack(gameId, player, coordinates)
+        val state = service.getGameState(gameId, turn)
+
+        //then
+        assertThat(state.turn).isEqualTo(turn)
+    }
+
+    @Test
+    fun `getGameState() - should throw NoSuchElementException because turn is not used` () {
+        //given
+        val gameId = "new11"
+        val turn = 1;
+
+        //when
+        service.createGame(gameId)
+        val exception = assertThrows<NoSuchElementException> { service.getGameState(gameId, turn)  }
+
+        //then
+        assertThat(exception::class).isEqualTo(NoSuchElementException::class)
+    }
+
+    @Test
+    fun `resetGame() - should set game drop all states except first` () {
+        //given
+        val gameId = "new11"
+        val player = Player.ONE
+        val coordinates = Coordinates('A', 1)
+
+        //when
+        val firstState = service.createGame(gameId).states.first()
+        service.performAttack(gameId, player, coordinates)
+        val stateCount = service.getGame(gameId).states.size
+        service.resetGame(gameId)
+        val newStateCount = service.getGame(gameId).states.size
+
+        //then
+        assertThat(newStateCount).isLessThan(stateCount)
+        assertThat(newStateCount).isEqualTo(1)
+        assertThat(service.getCurrentGameState(gameId)).isEqualTo(firstState)
+    }
 }
