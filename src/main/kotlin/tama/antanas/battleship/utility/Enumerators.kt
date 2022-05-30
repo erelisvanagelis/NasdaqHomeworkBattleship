@@ -18,8 +18,10 @@ enum class Environment{
     WATER
 }
 
-enum class Action(val lowName: String, val description: String){
-    MISS("miss", "missed ships"),
-    HIT("hit", "hit ship"),
-    SANK("sank", "sank ship")
+enum class Action(val lowName: String){
+    MISS("miss"),
+    HIT("hit"),
+    SANK("sank"),
+    GENERATED("generated"),
+    RESET("reset")
 }

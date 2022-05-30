@@ -1,10 +1,12 @@
 package tama.antanas.battleship.datasource
 
-import tama.antanas.battleship.model.Game
+import tama.antanas.battleship.model.GameState
 
 interface GameDataSource {
-    fun addGame (game: Game) : Game
-    fun updateGame (game: Game) : Game
-    fun retrieveGame (id: String) : Game?
-    fun retrieveAllGames() : Collection<Game>
+    fun addGameState (gameState: GameState) : GameState
+    fun updateGameState (gameState: GameState) : GameState
+    fun retrieveGameStates (gameId: String) : Collection<GameState>
+    fun retrieveGameState (gameId: String, turn: Int) : GameState?
+    fun retrieveAllGameStates() : Collection<GameState>
+    fun deleteGameStates(gameId: String) : Unit
 }

@@ -34,6 +34,13 @@ function App() {
     number: "",
   });
 
+  const [importantMessage, setImportantMessage] = useState("");
+
+  const handleMessages = (message) => {
+    if (messages[messages.length - 1] !== message)
+      setMessages([message, ...messages]);
+  };
+
   const handleAction = async (id) => {
     console.log(`actionId: ${id}`);
     let response;
@@ -41,7 +48,7 @@ function App() {
       case constants.ACTION_CREATE_GAME:
         response = await BattleshipApi.createGame(gameId);
         if (response.success) {
-          setMessages(["Game Created", ...messages]);
+          handleMessages("Game Created");
         } else {
           alert(response.data);
         }
@@ -50,10 +57,26 @@ function App() {
       case constants.ACTION_GET_CURRENT_GAMESTATE:
         response = await BattleshipApi.getCurrentState(gameId);
         if (response.success) {
-          setMessages([
-            `Turn - ${response.data.turn} - ${response.data.action}`,
-            ...messages,
-          ]);
+          if (response.data.attackCoordinates == null) {
+            handleMessages(
+              `Turn - ${response.data.turn} - ${response.data.action}`
+            );
+
+            if (response.data.playerTurn === constants.PLAYER_ONE) {
+              setImportantMessage(`PLAYER ${constants.PLAYER_ONE} TURN`);
+            } else {
+              setImportantMessage(`PLAYER ${constants.PLAYER_TWO} TURN`);
+            }
+
+            if (response.data.gameOver == true) {
+              setImportantMessage(`GAME OVER`);
+            }
+          } else {
+            handleMessages(
+              `Turn - ${response.data.turn} - ${response.data.action} - ${response.data.attackCoordinates.letter}${response.data.attackCoordinates.number}`
+            );
+          }
+
           setState({ ...response.data });
           console.log(state);
         } else {
@@ -64,7 +87,7 @@ function App() {
       case constants.ACTION_RESET_GAME:
         response = await BattleshipApi.resetGame(gameId);
         if (response.success) {
-          setMessages(["Game Reset", ...messages]);
+          handleMessages("Game Reset");
         } else {
           alert(response.data);
         }
@@ -77,8 +100,9 @@ function App() {
           coordinates.letter,
           coordinates.number
         );
+
         if (response.success) {
-          setMessages([response.data, ...messages]);
+          handleMessages(response.data);
         } else {
           alert(response.data);
         }
@@ -94,65 +118,64 @@ function App() {
 
   return (
     <div className="App">
-      <Container
-        maxWidth="lg"
+      <Stack
+        alignItems="start"
+        justifyContent="center"
+        direction="row"
+        spacing={2}
         sx={{ backgroundColor: "#778899", minHeight: "100vh" }}
       >
-        <Stack alignItems="center" spacing={2}>
-          <strong>BATTLESHIP</strong>
+        <Stack spacing={2} justifyContent="center" alignContent="center" sx={{ minHeight: "100vh" }}>
+          <TextField
+            label="Game Id"
+            defaultValue={"Your game id"}
+            value={gameId}
+            onChange={(e) => setGameId(e.target.value)}
+          />
 
-          <Stack direction="row" spacing={2}>
-            <TextField
-              label="Game Id"
-              defaultValue={"Your game id"}
-              value={gameId}
-              onChange={(e) => setGameId(e.target.value)}
-            />
+          <Button
+            variant="contained"
+            onClick={() => handleAction(constants.ACTION_CREATE_GAME)}
+          >
+            Generate Game
+          </Button>
 
-            <Button
-              variant="contained"
-              onClick={() => handleAction(constants.ACTION_CREATE_GAME)}
-            >
-              Generate Game
-            </Button>
+          <Button
+            variant="contained"
+            onClick={() => handleAction(constants.ACTION_GET_CURRENT_GAMESTATE)}
+          >
+            Retrieve Game
+          </Button>
 
-            <Button
-              variant="contained"
-              onClick={() =>
-                handleAction(constants.ACTION_GET_CURRENT_GAMESTATE)
-              }
-            >
-              Retrieve Game
-            </Button>
+          <Button
+            variant="contained"
+            onClick={() => handleAction(constants.ACTION_RESET_GAME)}
+          >
+            Reset Game
+          </Button>
 
-            <Button
-              variant="contained"
-              onClick={() => handleAction(constants.ACTION_RESET_GAME)}
-            >
-              Reset Game
-            </Button>
-          </Stack>
+          <TextField
+            label="Letter"
+            defaultValue={"Attack Letter"}
+            value={coordinates.letter}
+            onChange={(e) =>
+              setCoordinates({
+                ...coordinates,
+                letter: e.target.value.toUpperCase(),
+              })
+            }
+          />
 
-
-
-          <Stack direction="row" spacing={2}>         
-            <TextField
-              label="Letter"
-              defaultValue={"Attack Letter"}
-              value={coordinates.letter}
-              onChange={(e) =>
-                setCoordinates({ ...coordinates, letter: e.target.value })
-              }
-            />
-
-            <TextField
-              label="Number"
-              defaultValue={"Attack Number"}
-              value={coordinates.number}
-              onChange={(e) =>
-                setCoordinates({ ...coordinates, number: e.target.value })
-              }
-            />
+          <TextField
+            label="Number"
+            defaultValue={"Attack Number"}
+            value={coordinates.number}
+            onChange={(e) => {
+              const maybeNumber = parseInt(e.target.value);
+              if (Number.isInteger(maybeNumber))
+                setCoordinates({ ...coordinates, number: maybeNumber });
+            }}
+          />
 
           <ToggleButtonGroup
             value={selectedPlayer}
@@ -165,34 +188,40 @@ function App() {
             <ToggleButton value={constants.PLAYER_TWO}>
               PLAYER {constants.PLAYER_TWO}
             </ToggleButton>
-          </ToggleButtonGroup>            
+          </ToggleButtonGroup>
 
-            <Button
-              variant="contained"
-              onClick={() => handleAction(constants.ACTION_ATTACK)}
-            >
-              Attack
-            </Button>
-          </Stack>
-          
-
-          <Stack direction="row" spacing={2}>
+          <Button
+            variant="contained"
+            onClick={() => handleAction(constants.ACTION_ATTACK)}
+          >
+            Attack
+          </Button>
+        </Stack>
+        <Divider orientation="vertical" flexItem />
+        <Stack spacing={2} alignItems="center" justifyContent="space-around">
+          <h1>BATTLESHIP</h1>
+          <strong>{importantMessage}</strong>
+          <Stack spacing={2} direction="row">
             <Grid
-              title="Player One"
+              player={constants.PLAYER_ONE}
               tiles={state.fpGrid}
-              showOnlyShot={false}
+              selectedPlayer={selectedPlayer}
             />
             <Divider orientation="vertical" flexItem />
-            <Grid title="Player Two" tiles={state.spGrid} showOnlyShot={true} />
-            <Divider orientation="vertical" flexItem />
-            <ul>
-              {messages.map((message) => (
-                <li>{message}</li>
-              ))}
-            </ul>
+            <Grid
+              player={constants.PLAYER_TWO}
+              tiles={state.spGrid}
+              selectedPlayer={selectedPlayer}
+            />
           </Stack>
         </Stack>
-      </Container>
+        <Divider orientation="vertical" flexItem />
+        <ul>
+          {messages.map((message) => (
+            <li>{message}</li>
+          ))}
+        </ul>
+      </Stack>
     </div>
   );
 }

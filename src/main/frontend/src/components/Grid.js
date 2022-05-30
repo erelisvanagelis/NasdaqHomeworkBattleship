@@ -1,21 +1,18 @@
 import { Stack } from "@mui/material";
 import Tile from "./Tile";
 
-export default function Grid({ title, tiles, showOnlyShot }) {
+export default function Grid({ player, tiles, selectedPlayer }) {
   let previousLetter = null;
   const borderColor = "grey";
   const hit = "red";
   const miss = "blue";
   const notShotWater = "grey";
   const notShotShip = "green";
-
-  function selectTile(tile) {
-    return;
-  }
+  console.log(`${player} ${selectedPlayer} ${player === selectedPlayer}`)
 
   return (
     <div style={{ height: "300px", width: "340px" }}>
-      <h1>{title}</h1>
+      <h1>PLAYER {player}</h1>
       <Stack direction="row" flexWrap="wrap">
         {tiles.map((tile) => {
           if (tile.shot) {
@@ -25,7 +22,7 @@ export default function Grid({ title, tiles, showOnlyShot }) {
               );
             else
               return <Tile borderColor={borderColor} color={hit} size="30px" />;
-          } else if (!showOnlyShot) {
+          } else if (player === selectedPlayer) {
             if (tile.tag === "WATER")
               return (
                 <Tile
@@ -48,6 +45,7 @@ export default function Grid({ title, tiles, showOnlyShot }) {
                 borderColor={borderColor}
                 color={notShotWater}
                 size="30px"
+                symbol={`${tile.coordinates.letter}${tile.coordinates.number}`}                
               />
             );
         })}

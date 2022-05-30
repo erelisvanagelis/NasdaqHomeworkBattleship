@@ -4,6 +4,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.*
 import tama.antanas.battleship.datasource.MockGameDataSource
 import tama.antanas.battleship.model.Coordinates
+import tama.antanas.battleship.model.GameState
 import tama.antanas.battleship.utility.Action
 import tama.antanas.battleship.utility.Environment
 import tama.antanas.battleship.utility.Player
@@ -78,37 +79,38 @@ internal class DefaultBattleshipServiceTest{
     }
 
     @Test
-    fun `createGame() - should create a game and add it to the dataSource` () {
+    fun `createGameState() - should create a game and add it to the dataSource` () {
         //given
         val id = "new1"
 
         //when
-        val game = service.createGame(id)
-        val retrieved = service.getGame(id)
+        val gameState = service.createPrimaryGameState(id)
+        val retrieved = service.getGameState(id, 0)
 
         //then
-        assertThat(game).isEqualTo(retrieved)
+        assertThat(gameState).isEqualTo(retrieved)
     }
 
     @Test
-    fun `createGame() - should throw an IllegalArgumentException because id already in use` () {
+    fun `createGameState() - should throw an IllegalArgumentException because id already in use` () {
         //given
         val id = "test1"
 
         //when
-        val exception = assertThrows<IllegalArgumentException> { service.createGame(id) }
+        val exception = assertThrows<IllegalArgumentException> { service.createPrimaryGameState(id) }
 
         //then
         assertThat(exception::class).isEqualTo(IllegalArgumentException::class)
     }
 
     @Test
-    fun `getGame() - should return a game` () {
+    fun `getGameState() - should return a game` () {
         //given
         val id = "test1"
+        val turn = 0
 
         //when
-        val game = service.getGame(id)
+        val game = service.getGameState(id, turn)
 
         //then
         assertThat(game).isNotNull
@@ -118,9 +120,10 @@ internal class DefaultBattleshipServiceTest{
     fun `getGame() - should throw an NuSuchElementException because id is not in use` () {
         //given
         val id = "new2"
+        val turn = 0
 
         //when
-        val exception = assertThrows<NoSuchElementException> { service.getGame(id) }
+        val exception = assertThrows<NoSuchElementException> { service.getGameState(id, turn) }
 
         //then
         assertThat(exception::class).isEqualTo(NoSuchElementException::class)
@@ -145,16 +148,21 @@ internal class DefaultBattleshipServiceTest{
         }
 
         @Test
-        fun `should throw UnsupportedOperationException because game state is inactive` () {
+        fun `should throw UnsupportedOperationException because game is over` () {
             //given
             val id = "new4"
             val player = Player.ONE
             val coordinates = Coordinates('A', 1)
+            val gameState = GameState(
+                id = id,
+                gameOver = true,
+                fpGrid = listOf(),
+                spGrid = listOf(),
+                attackCoordinates = coordinates
+            )
 
             //when
-            val game = service.createGame(id)
-            game.active = false
-            service.changeGame(game)
+            service.addGameState(gameState)
             val exception = assertThrows<UnsupportedOperationException> { service.performAttack(id, player, coordinates)  }
 
             //then
@@ -168,8 +176,16 @@ internal class DefaultBattleshipServiceTest{
             val player = Player.TWO
             val coordinates = Coordinates('A', 1)
 
+            val gameState = GameState(
+                id = id,
+                gameOver = true,
+                fpGrid = listOf(),
+                spGrid = listOf(),
+                attackCoordinates = coordinates
+            )
+
             //when
-            service.createGame(id)
+            service.addGameState(gameState)
             val exception = assertThrows<UnsupportedOperationException> { service.performAttack(id, player, coordinates)  }
 
             //then
@@ -179,15 +195,15 @@ internal class DefaultBattleshipServiceTest{
         @Test
         fun `should create additional GameState and add it to states` () {
             //given
-            val id = "new7"
+            val id = "new6"
             val player = Player.ONE
             val coordinates = Coordinates('A', 1)
 
             //when
-            val game = service.createGame(id)
-            val currentTurnCount = game.states.size
+            service.createPrimaryGameState(id)
+            val currentTurnCount = service.getGameStates(id).size
             service.performAttack(id, player, coordinates)
-            val newTurnCount = service.getGame(id).states.size
+            val newTurnCount = service.getGameStates(id).size
 
             //then
             assertThat(currentTurnCount + 1).isEqualTo(newTurnCount)
@@ -199,11 +215,19 @@ internal class DefaultBattleshipServiceTest{
             val id = "new8"
             val player = Player.ONE
             val coordinates = Coordinates('A', 1)
+            val gameState = GameState(
+                id = id,
+                gameOver = true,
+                fpGrid = listOf(),
+                spGrid = listOf(),
+                attackCoordinates = coordinates
+            )
 
             //when
-            val currentState = service.createGame(id).states.first()
+            service.createPrimaryGameState(id)
+            val currentState = service.addGameState(gameState)
             service.performAttack(id, player, coordinates)
-            val newState = service.getGame(id).states.last()
+            val newState = service.getCurrentGameState(gameState.id)
 
             //then
             assertThat(currentState.turn).isLessThan(newState.turn)
@@ -350,10 +374,6 @@ internal class DefaultBattleshipServiceTest{
         }
     }
 
-//    fun getCurrentGameState(gameId: String): GameState
-//    fun getGameState(gameId: String, turn: Int): GameState
-//    fun resetGame(gameId: String): GameState
-
     @Test
     fun `getCurrentGameState() - should return latestGameState` () {
         //given
@@ -362,10 +382,10 @@ internal class DefaultBattleshipServiceTest{
         val coordinates = Coordinates('A', 1)
 
         //when
-        val game = service.createGame(gameId)
-        val previousLatest = game.states.last()
+        service.createPrimaryGameState(gameId)
+        val previousLatest = service.getCurrentGameState(gameId)
         service.performAttack(gameId, player, coordinates)
-        val currentLatest = game.states.last()
+        val currentLatest = service.getCurrentGameState(gameId)
 
         //then
         assertThat(service.getCurrentGameState(gameId)).isNotEqualTo(previousLatest)
@@ -378,12 +398,14 @@ internal class DefaultBattleshipServiceTest{
         val gameId = "new10"
         val player = Player.ONE
         val coordinates = Coordinates('A', 1)
-        val turn = 1;
+        val turn = 1
 
         //when
-        val game = service.createGame(gameId)
+        val game = service.createPrimaryGameState(gameId)
+        println(game.turn)
         service.performAttack(gameId, player, coordinates)
         val state = service.getGameState(gameId, turn)
+        println(state.turn)
 
         //then
         assertThat(state.turn).isEqualTo(turn)
@@ -393,10 +415,10 @@ internal class DefaultBattleshipServiceTest{
     fun `getGameState() - should throw NoSuchElementException because turn is not used` () {
         //given
         val gameId = "new11"
-        val turn = 1;
+        val turn = 1
 
         //when
-        service.createGame(gameId)
+        service.createPrimaryGameState(gameId)
         val exception = assertThrows<NoSuchElementException> { service.getGameState(gameId, turn)  }
 
         //then
@@ -406,20 +428,35 @@ internal class DefaultBattleshipServiceTest{
     @Test
     fun `resetGame() - should set game drop all states except first` () {
         //given
-        val gameId = "new11"
-        val player = Player.ONE
+        val id = "new11"
         val coordinates = Coordinates('A', 1)
+        val gameState = GameState(
+            id = id,
+            gameOver = true,
+            fpGrid = listOf(),
+            spGrid = listOf(),
+            attackCoordinates = coordinates
+        )
+
+        val gameState2 = GameState(
+            id = id,
+            turn = 2,
+            gameOver = true,
+            fpGrid = listOf(),
+            spGrid = listOf(),
+            attackCoordinates = coordinates
+        )
 
         //when
-        val firstState = service.createGame(gameId).states.first()
-        service.performAttack(gameId, player, coordinates)
-        val stateCount = service.getGame(gameId).states.size
-        service.resetGame(gameId)
-        val newStateCount = service.getGame(gameId).states.size
+        service.addGameState(gameState)
+        service.addGameState(gameState2)
+        val beforeReset = service.getGameStates(id)
+        service.resetToPrimaryState(id)
+        val afterReset = service.getGameStates(id)
 
         //then
-        assertThat(newStateCount).isLessThan(stateCount)
-        assertThat(newStateCount).isEqualTo(1)
-        assertThat(service.getCurrentGameState(gameId)).isEqualTo(firstState)
+        assertThat(afterReset.size).isLessThan(beforeReset.size)
+        assertThat(afterReset.size).isEqualTo(1)
+        assertThat(service.getCurrentGameState(id)).isEqualTo(gameState)
     }
 }

@@ -4,7 +4,6 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import tama.antanas.battleship.datasource.MockGameDataSource
 import tama.antanas.battleship.model.Coordinates
-import tama.antanas.battleship.model.Game
 import tama.antanas.battleship.model.GameState
 import tama.antanas.battleship.model.Tile
 import tama.antanas.battleship.utility.Environment
@@ -13,61 +12,62 @@ internal class MockGameDataSourceTest {
     private val dataSource: MockGameDataSource = MockGameDataSource()
 
     @Test
-    fun `retrieveAllGames() should retrieve all games` () {
+    fun `retrieveAllGameStates() should retrieve all games`() {
         //when
-        val games = dataSource.retrieveAllGames()
+        val games = dataSource.retrieveAllGameStates()
 
         //then
         assertThat(games.size).isEqualTo(3)
     }
 
-@Test
-fun `retrieveGame(id) - should retrieve a game by id` () {
-    //given
-    val id = "test1"
-
-    //when
-    val game = dataSource.retrieveGame(id)
-
-    //then
-    assertThat(game).isNotNull
-}
-
     @Test
-    fun `addGame(game) - should add a game to the dataSource`() {
+    fun `retrieveGameState(id) - should retrieve a game by id`() {
         //given
-        val game = Game("testId", mutableListOf())
+        val id = "test1"
+        val turn = 0
 
         //when
-        val oldSize = dataSource.retrieveAllGames().size
-        dataSource.addGame(game)
-        val newSize = dataSource.retrieveAllGames().size
+        val gameState = dataSource.retrieveGameState(id, turn)
 
         //then
-        assertThat(oldSize + 1).isEqualTo(newSize)
-        assertThat(dataSource.retrieveAllGames().contains(game))
+        assertThat(gameState).isNotNull
     }
 
     @Test
-    fun `updateGame(game) - should update an existing item`() {
+    fun `addGameState(game) - should add a game to the dataSource`() {
         //given
-        val id = "test1"
-        val game = Game(
-            id, mutableListOf(
-                GameState(
-                    fpGrid = listOf(Tile(Environment.WATER.name, Coordinates('A', 2,), false)),
-                    spGrid = listOf(Tile(Environment.WATER.name, Coordinates('A', 2), false))
-                )
-            )
-        )
+        val gameState = GameState(id = "passed1", spGrid = listOf(), fpGrid = listOf(), attackCoordinates = null)
 
         //when
-        val oldGame = dataSource.retrieveGame(id)
-        dataSource.updateGame(game)
-        val newGame = dataSource.retrieveGame(id)
+        val oldSize = dataSource.retrieveAllGameStates().size
+        dataSource.addGameState(gameState)
+        val newSize = dataSource.retrieveAllGameStates().size
 
         //then
-        assertThat(oldGame).isNotEqualTo(newGame)
+        assertThat(oldSize + 1).isEqualTo(newSize)
+        assertThat(dataSource.retrieveAllGameStates().contains(gameState))
+    }
+
+    @Test
+    fun `updateGameState(game) - should update an existing item`() {
+        //given
+        val id = "test1"
+        val turn = 0
+        val gameState =
+            GameState(
+                id = id,
+                fpGrid = listOf(Tile(Environment.WATER.name, Coordinates('A', 2), false)),
+                spGrid = listOf(Tile(Environment.WATER.name, Coordinates('A', 2), false)),
+                attackCoordinates = null
+            )
+
+        //when
+        val oldGameState = dataSource.retrieveGameState(id, turn)
+        dataSource.updateGameState(gameState)
+        val newGameState = dataSource.retrieveGameState(id, turn)
+
+        //then
+        assertThat(oldGameState).isNotEqualTo(newGameState)
     }
 
 }
