@@ -34,7 +34,7 @@ class BattleshipRestController(private val service: BattleshipService) {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun resetSpecifiedGame(@PathVariable id: String) = service.resetGame(id)
 
-    @PostMapping("/")
+    @PostMapping
     fun postAction (@RequestBody attackRequest: AttackRequest) : String {
         val result = service.performAttack(attackRequest.gameId, attackRequest.player, attackRequest.coordinates)
         println(result)
