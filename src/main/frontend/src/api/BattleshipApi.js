@@ -27,7 +27,7 @@ export async function getCurrentState(gameId) {
 
 export async function resetGame(gameId) {
   try {
-    const response = await axios.delete(`${baseurl}/${gameId}`);
+    const response = await axios.delete(`${baseurl}/${gameId}/reset`);
     console.log(response);
     return { success: true, data: { ...response.data } };
   } catch (error) {
@@ -49,7 +49,7 @@ export async function performAttack(gameId, player, letter, number) {
     });
 
     console.log(response);
-    return { success: true, data: { ...response.data } };
+    return { success: true, data: response.data };
   } catch (error) {
     console.error(error);
     const message = error.response.data;

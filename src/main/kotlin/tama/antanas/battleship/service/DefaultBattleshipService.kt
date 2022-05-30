@@ -3,7 +3,6 @@ package tama.antanas.battleship.service
 import org.springframework.stereotype.Service
 import tama.antanas.battleship.datasource.GameDataSource
 import tama.antanas.battleship.model.Coordinates
-import tama.antanas.battleship.model.Game
 import tama.antanas.battleship.model.GameState
 import tama.antanas.battleship.model.Tile
 import tama.antanas.battleship.utility.Action
@@ -84,88 +83,78 @@ class DefaultBattleshipService(private val gameDataSource: GameDataSource) : Bat
         return validSequences
     }
 
-    override fun createGame(id: String): Game {
-        gameDataSource.retrieveGame(id)?.let { throw IllegalArgumentException("Id: $id already in use") }
+    override fun createPrimaryGameState(id: String): GameState {
+        gameDataSource.retrieveGameState(id, 0)?.let { throw IllegalArgumentException("Id: $id already in use") }
 
         val grid = generateGrid('A'..'J', 1..10)
-        val game = Game(
-            id,
-            mutableListOf(
-                GameState(
-                    fpGrid = populateGrid(grid, Ship.values().toList()),
-                    spGrid = populateGrid(grid, Ship.values().toList())
-                )
-            )
-        )
-        gameDataSource.addGame(game)
 
-        return game
+        val gameState = GameState(
+            id = id,
+            fpGrid = populateGrid(grid, Ship.values().toList()),
+            spGrid = populateGrid(grid, Ship.values().toList()),
+            attackCoordinates = null
+        )
+
+        gameDataSource.addGameState(gameState)
+
+        return gameState
     }
 
-    override fun getGame(id: String): Game =
-        gameDataSource.retrieveGame(id) ?: throw NoSuchElementException("This game (Id: $id) does not exist")
+    override fun addGameState(gameState: GameState): GameState {
+        gameDataSource.addGameState(gameState)
+        return gameState
+    }
 
-    override fun changeGame(game: Game): Game {
-        gameDataSource.retrieveGame(game.id)
-            ?: throw NoSuchElementException("This game (Id: ${game.id}) does not exist")
-        gameDataSource.updateGame(game)
-        return game
+    override fun changeGameState(gameState: GameState): GameState {
+        gameDataSource.retrieveGameState(gameState.id, gameState.turn)
+            ?: throw NoSuchElementException("This game (Id: ${gameState.id}, Turn: ${gameState.turn}) does not exist")
+
+        gameDataSource.updateGameState(gameState)
+
+        return gameState
     }
 
     override fun performAttack(gameId: String, player: Player, coordinates: Coordinates): String {
-        val game = getGame(gameId)
-        val currentState = game.states.last()
-
+        val gameState = getCurrentGameState(gameId)
         when {
-            !game.active -> throw UnsupportedOperationException("Game ($gameId) is already over")
+            gameState.gameOver -> throw UnsupportedOperationException("Game ($gameId) is already over")
 
             Player.values().firstOrNull { it == player } == null ->
                 throw UnsupportedOperationException("Player ($player) does not exist. Supported names: ${Player.values()}")
 
-            currentState.playerTurn != player -> throw UnsupportedOperationException("Game ($gameId) is already over")
+            gameState.playerTurn != player -> throw UnsupportedOperationException("Currently player (${gameState.playerTurn}) turn")
         }
 
-        lateinit var nextPlayerTurn: Player
-        lateinit var selectedGrid: List<Tile>
+        lateinit var opponentGrid: List<Tile>
         lateinit var fpGrid: List<Tile>
         lateinit var spGrid: List<Tile>
 
-        if (player == Player.ONE) {
-            selectedGrid = currentState.spGrid.map { it }
-            fpGrid = currentState.fpGrid
-            spGrid = selectedGrid
-            nextPlayerTurn = Player.TWO
-
-        } else if (player == Player.TWO) {
-            selectedGrid = currentState.fpGrid.map { it }
-            fpGrid = currentState.spGrid
-            spGrid = selectedGrid
-            nextPlayerTurn = Player.ONE
+        when (player) {
+            Player.ONE -> {
+                fpGrid = gameState.fpGrid.map { it.copy() }
+                spGrid = gameState.spGrid.map { it.copy() }
+                opponentGrid = spGrid
+            }
+            Player.TWO -> {
+                fpGrid = gameState.fpGrid.map { it.copy() }
+                spGrid = gameState.spGrid.map { it.copy() }
+                opponentGrid = fpGrid
+            }
         }
 
-        val actionResult = attackTile(selectedGrid, coordinates)
-        var actionMessage = "${player.name} ${actionResult.description}"
-        val allShipsSunk = areAllShipsSunk(selectedGrid, Ship.values().toList())
-        if (allShipsSunk) actionMessage += ", GAME OVER PLAYER ${player.name} WON"
-
         val newState = GameState(
-            turn = currentState.turn + 1,
-            playerTurn = nextPlayerTurn,
-            action = actionMessage,
+            id = gameId,
+            turn = gameState.turn + 1,
+            playerTurn = if (player == Player.ONE) Player.TWO else Player.ONE,
+            action = attackTile(opponentGrid, coordinates),
             fpGrid = fpGrid,
-            spGrid = spGrid
+            spGrid = spGrid,
+            attackCoordinates = coordinates,
+            gameOver = areAllShipsSunk(opponentGrid, Ship.values().toList())
         )
+        gameDataSource.addGameState(newState)
 
-        game.states.add(newState)
-        gameDataSource.updateGame(
-            Game(
-                id = gameId,
-                active = !allShipsSunk,
-                states = game.states
-            )
-        )
-
-        return actionResult.lowName
+        return newState.action.lowName
     }
 
     override fun attackTile(grid: List<Tile>, coordinates: Coordinates): Action {
@@ -202,21 +191,26 @@ class DefaultBattleshipService(private val gameDataSource: GameDataSource) : Bat
         return true
     }
 
-    override fun getCurrentGameState(gameId: String): GameState = getGame(gameId).states.last()
-
-    override fun getGameState(gameId: String, turn: Int): GameState {
-        val game = getGame(gameId)
-        return game.states.firstOrNull { it.turn == turn }
-            ?: throw NoSuchElementException("No state with with requested turn ($turn)")
+    override fun getCurrentGameState(gameId: String): GameState {
+        return getGameStates(gameId).maxByOrNull { it.turn }
+            ?: throw NoSuchElementException("No latest state")
     }
 
-    override fun resetGame(gameId: String): Game {
-        val game = getGame(gameId)
-        val firsState = game.states.first()
-        game.states.clear()
-        game.states.add(firsState)
-        game.active = true
-        changeGame(game)
-        return game
+    override fun getGameState(gameId: String, turn: Int): GameState = gameDataSource.retrieveGameState(gameId, turn)
+        ?: throw NoSuchElementException("No state with with requested turn ($turn)")
+
+    override fun getGameStates(gameId: String): Collection<GameState> {
+        val states = gameDataSource.retrieveGameStates(gameId)
+        if (states.isEmpty()) {
+            throw NoSuchElementException("No states with requested Id: $gameId")
+        }
+
+        return states
+    }
+
+    override fun resetToPrimaryState(gameId: String): Unit {
+        val primaryState = gameDataSource.retrieveGameStates(gameId).first { it.turn == 0 }
+        gameDataSource.deleteGameStates(gameId)
+        gameDataSource.addGameState(primaryState.copy(action = Action.RESET))
     }
 }

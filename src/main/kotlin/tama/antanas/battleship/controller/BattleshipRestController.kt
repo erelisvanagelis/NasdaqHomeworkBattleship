@@ -14,7 +14,7 @@ class BattleshipRestController(private val service: BattleshipService) {
 
     @PostMapping("/{id}")
     @ResponseStatus(HttpStatus.CREATED)
-    fun postGame(@PathVariable id: String): Game = service.createGame(id)
+    fun postGame(@PathVariable id: String): GameState = service.createPrimaryGameState(id)
 
     @GetMapping("/{id}")
     fun getCurrentState (@PathVariable id : String) : GameState {
@@ -28,11 +28,11 @@ class BattleshipRestController(private val service: BattleshipService) {
     }
 
     @GetMapping("/{id}/{turn}")
-    fun getSpecifiedState(@PathVariable id: String, @PathVariable turn:Int) = service.getGameState(id, turn)
+    fun getSpecifiedState(@PathVariable id: String, @PathVariable turn:Int) : GameState = service.getGameState(id, turn)
 
     @DeleteMapping("/{id}/reset")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun resetSpecifiedGame(@PathVariable id: String) = service.resetGame(id)
+    fun resetSpecifiedGame(@PathVariable id: String) = service.resetToPrimaryState(id)
 
     @PostMapping
     fun postAction (@RequestBody attackRequest: AttackRequest) : String {
@@ -41,8 +41,6 @@ class BattleshipRestController(private val service: BattleshipService) {
         return result
     }
 
-    @GetMapping("/test")
-    fun test() : AttackRequest = AttackRequest("gg", Player.ONE, Coordinates('A', 1))
 
     fun printGrid(grid: List<Tile>){
         var previousCoordinate = grid.first().coordinates
@@ -64,9 +62,6 @@ class BattleshipRestController(private val service: BattleshipService) {
                     print("S ")
                 }
             }
-
-
-
             previousCoordinate = tile.coordinates
         }
         println()

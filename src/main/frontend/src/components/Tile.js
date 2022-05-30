@@ -21,7 +21,7 @@ export default function Tile({ borderColor, color, symbol, size }) {
           alignContent: 'center'
         }}
       >
-        <b>{symbol}</b>
+        <b alignContent="center">{symbol}</b>
       </div>
     </div>
   );
