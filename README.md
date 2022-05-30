@@ -1,4 +1,4 @@
-# REST Battleship api developed using SpringBoot.
+# REST Battleship API developed using SpringBoot.
 
 ## Battleship REST service
 This service allows user to generate game boards, retrieve them and update them by performing attacks.
@@ -20,11 +20,11 @@ This service allows user to generate game boards, retrieve them and update them 
 - Tile - Data class that holds information about a tile
 
 ### Controller
-BattleshipRESTController - Main controller that host api requests. 
-BattleshipController - Controller used to host frontend.
+- BattleshipRESTController - Main controller that host api requests. 
+- BattleshipController - Controller used to host frontend.
 
 ### View
-A basic react app that makes calls to the main API
+- A basic react app that makes calls to the main API
 
 ## Building the project
 You will need:
@@ -32,13 +32,12 @@ You will need:
 - Maven 3.8.1 or higher
 
 ### Clone the project and use Maven to build the server
-###
 
-mvn clean install
+$ mvn clean install
 
 ### To run the project with frontend enabled
 
-mvn spring-boot:run
+$ mvn spring-boot:run
 
 
 ## API Usage
