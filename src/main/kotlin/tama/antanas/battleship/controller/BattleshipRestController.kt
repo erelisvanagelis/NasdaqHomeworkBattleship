@@ -13,6 +13,7 @@ import tama.antanas.battleship.utility.Player
 class BattleshipRestController(private val service: BattleshipService) {
 
     @PostMapping("/{id}")
+    @ResponseStatus(HttpStatus.CREATED)
     fun postGame(@PathVariable id: String): Game = service.createGame(id)
 
     @GetMapping("/{id}")
@@ -25,6 +26,13 @@ class BattleshipRestController(private val service: BattleshipService) {
 
         return state
     }
+
+    @GetMapping("/{id}/{turn}")
+    fun getSpecifiedState(@PathVariable id: String, @PathVariable turn:Int) = service.getGameState(id, turn)
+
+    @DeleteMapping("/{id}/reset")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun resetSpecifiedGame(@PathVariable id: String) = service.resetGame(id)
 
     @PostMapping("/")
     fun postAction (@RequestBody attackRequest: AttackRequest) : String {
